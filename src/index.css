@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* We can also add your custom scrollbar hiding logic here */
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+body {
+  background-color: #f8f5f2;
+  -webkit-tap-highlight-color: transparent;
+}
