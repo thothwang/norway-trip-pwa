@@ -1,79 +1,141 @@
-import React, { useState } from 'react'
-import { Map, Wallet, Camera } from 'lucide-react'
-import Memories from './components/Memories'
+import React, { useState, useEffect } from 'react'
+import { Map, Wallet, Camera, CloudUpload, CloudOff, CloudCheck, RefreshCw } from 'lucide-react'
 import Timeline from './components/Timeline'
 import Itinerary from './components/Itinerary'
+import ExpenseModal from './components/ExpenseModal'
+import Budget from './components/Budget'
+import NoteModal from './components/NoteModal';
+import PhotoModal from './components/PhotoModal';
+import { checkHasPendingData } from './db';
+import { runGlobalSync } from './sync';
+
 
 function App() {
-  const [activeTab, setActiveTab] = useState('itinerary'); // Start on the Itinerary tab
-  
-  // 2. Global state to track where we are
+  const [activeTab, setActiveTab] = useState('itinerary');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(1);
-
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  // 3. The function that runs when you click a location
-  const handleLocationSelect = (loc, dayId) => {
+
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+
+  // Placeholder states for our future Global Sync logic
+  const [isOnline, setIsOnline] = useState(true);
+  const [hasUnsyncedData, setHasUnsyncedData] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  
+  // Check for unsynced data whenever the app loads or data changes
+  useEffect(() => {
+    checkHasPendingData().then(status => setHasUnsyncedData(status));
+  }, [refreshTrigger]);
+
+  // The function that runs when you click the Cloud button
+  const handleManualSync = async () => {
+    if (!hasUnsyncedData) return;
+    
+    setIsSyncing(true);
+    const result = await runGlobalSync();
+    setIsSyncing(false);
+
+    if (result === 'SUCCESS') {
+      triggerRefresh(); // Refresh all UI to show the new ✅ Synced status!
+    } else {
+      alert("同步失敗 (Sync Failed). Please check your connection.");
+    }
+  };
+
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+
+  const handleLocationAction = (loc, dayId, actionType) => {
     setSelectedLocation(loc);
     setSelectedDayId(dayId);
-    setActiveTab('memories'); // Instantly switch to the camera tab!
+
+    if (actionType === 'expense') setIsExpenseModalOpen(true);
+    else if (actionType === 'note') setIsNoteModalOpen(true);
+    else if (actionType === 'photo') setIsPhotoModalOpen(true);
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#f8f5f2] relative shadow-2xl flex flex-col">
-      <header className="bg-[#e85a4f] text-white p-4 pt-8 shadow-md z-10 flex justify-between items-end">
+    <div className="max-w-md mx-auto min-h-screen bg-[#f8f5f2] relative shadow-2xl flex flex-col overflow-hidden">
+      
+      <header className="bg-white px-5 pt-10 pb-4 shadow-sm z-10 flex justify-between items-center border-b border-gray-100">
         <div>
-            <h1 className="text-2xl font-bold">Norway 2026</h1>
-            <p className="text-sm opacity-90">Offline Mode Active</p>
-        </div>
-        {/* Visual indicator of where we are */}
-        {selectedLocation && activeTab === 'memories' && (
-            <div className="text-right text-sm font-bold bg-white/20 px-2 py-1 rounded">
+            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Norway 2026</h1>
+            {selectedLocation && activeTab === 'memories' ? (
+              <p className="text-xs font-bold text-[#e85a4f] flex items-center gap-1 mt-1">
                 📍 {selectedLocation.name}
-            </div>
-        )}
+              </p>
+            ) : (
+              <p className="text-xs font-bold text-gray-400 mt-1">
+                8 Days • Offline Mode
+              </p>
+            )}
+        </div>
+
+        <button 
+          onClick={handleManualSync}
+          disabled={isSyncing || !hasUnsyncedData}
+          className={`p-2.5 rounded-full transition-all active:scale-95 shadow-sm 
+            ${isSyncing ? 'bg-blue-50 text-blue-500' : 
+              hasUnsyncedData ? 'bg-red-50 text-red-500 animate-pulse' : 
+              'bg-green-50 text-green-500'}`}
+        >
+            {isSyncing ? <RefreshCw size={20} className="animate-spin" /> : 
+             hasUnsyncedData ? <CloudUpload size={20} /> : 
+             <CloudCheck size={20} />}
+        </button>
       </header>
 
-      <main className="flex-grow overflow-y-auto pb-24">
-        {activeTab === 'itinerary' && <Itinerary onSelectLocation={handleLocationSelect} />}
+      <main className="flex-grow overflow-y-auto pb-24 scrollbar-hide">
+        {activeTab === 'itinerary' && <Itinerary onSelectLocation={handleLocationAction} refreshTrigger={refreshTrigger}/>}
         
         {activeTab === 'memories' && (
-          <div className="animate-fade-in">
-            {/* 2. Pass a function to Memories to trigger the refresh */}
-            <Memories 
-              selectedLocation={selectedLocation} 
-              onSyncComplete={() => setRefreshTrigger(prev => prev + 1)} 
-            />
-            
-            <div className="w-full h-2 bg-gray-200/50 my-2"></div>
-            
-            {/* 3. Pass the trigger to the Timeline */}
-            <Timeline 
-              dayId={selectedDayId} 
-              refreshTrigger={refreshTrigger} 
-            />
+          <div className="animate-fade-in mt-4">
+            <h2 className="px-5 text-2xl font-bold text-gray-800 mb-2">Travel Journal</h2>
+            <Timeline refreshTrigger={refreshTrigger} triggerRefresh={triggerRefresh} />
           </div>
         )}
         
-        {activeTab === 'budget' && <div className="p-4 text-center">Budget Coming Soon</div>}
+        {activeTab === 'budget' && <Budget refreshTrigger={refreshTrigger} triggerRefresh={triggerRefresh}/>}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-gray-200 z-50">
-        <div className="flex justify-around items-center py-3">
-          <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1 ${activeTab === 'itinerary' ? 'text-[#e85a4f]' : 'text-gray-400'}`}>
-            <Map size={24} />
-            <span className="text-[10px] font-bold">Itinerary</span>
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 z-50">
+        <div className="flex justify-around items-center py-2">
+          <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'itinerary' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
+            <Map size={22} strokeWidth={activeTab === 'itinerary' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold tracking-wider">行程</span>
           </button>
-          <button onClick={() => setActiveTab('budget')} className={`flex flex-col items-center gap-1 ${activeTab === 'budget' ? 'text-[#e85a4f]' : 'text-gray-400'}`}>
-            <Wallet size={24} />
-            <span className="text-[10px] font-bold">Budget</span>
+          <button onClick={() => setActiveTab('budget')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'budget' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
+            <Wallet size={22} strokeWidth={activeTab === 'budget' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold tracking-wider">記帳</span>
           </button>
-          <button onClick={() => setActiveTab('memories')} className={`flex flex-col items-center gap-1 ${activeTab === 'memories' ? 'text-[#e85a4f]' : 'text-gray-400'}`}>
-            <Camera size={24} />
-            <span className="text-[10px] font-bold">Memories</span>
+          <button onClick={() => setActiveTab('memories')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'memories' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
+            <Camera size={22} strokeWidth={activeTab === 'memories' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold tracking-wider">紀錄</span>
           </button>
         </div>
       </nav>
+
+      <ExpenseModal 
+        isOpen={isExpenseModalOpen} 
+        onClose={() => setIsExpenseModalOpen(false)} 
+        location={selectedLocation} 
+        onRefresh={triggerRefresh}
+      />
+      <NoteModal 
+        isOpen={isNoteModalOpen} 
+        onClose={() => setIsNoteModalOpen(false)} 
+        location={selectedLocation} 
+        onRefresh={triggerRefresh}
+      />
+      <PhotoModal 
+        isOpen={isPhotoModalOpen} 
+        onClose={() => setIsPhotoModalOpen(false)} 
+        location={selectedLocation} 
+        onRefresh={triggerRefresh}
+      />
     </div>
   )
 }

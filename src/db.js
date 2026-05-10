@@ -1,11 +1,11 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'norway_trip_offline_db';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 
 export const initDB = async () => {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
       // 1. Master Itinerary (Pulled from server, read-only locally)
       if (!db.objectStoreNames.contains('itinerary')) {
         db.createObjectStore('itinerary', { keyPath: 'id' });
@@ -26,6 +26,12 @@ export const initDB = async () => {
       if (!db.objectStoreNames.contains('photos')) {
         const photoStore = db.createObjectStore('photos', { keyPath: 'local_id' });
         photoStore.createIndex('sync_status', 'sync_status');
+      }
+      if (!db.objectStoreNames.contains('check_ins')) {
+        db.createObjectStore('check_ins', { keyPath: 'location_id' });
+      }
+      if (!db.objectStoreNames.contains('api_cache')) {
+        db.createObjectStore('api_cache', { keyPath: 'cache_key' });
       }
     },
   });
@@ -91,4 +97,137 @@ export const saveOfflinePhoto = async (userId, locationId, fileBlob, sortOrder) 
 export const getPendingPhotos = async () => {
   const db = await initDB();
   return await db.getAllFromIndex('photos', 'sync_status', 'pending');
+};
+
+
+export const saveOfflineExpense = async (userId, locationId, amount, description) => {
+  const db = await initDB();
+  const expense = {
+    local_id: generateLocalId(),
+    user_id: userId,
+    location_id: locationId,
+    amount_nok: amount,
+    category: description, // Mapping description to the category pipe
+    sync_status: 'pending', // Flags this to be sent to the backend later
+    timestamp: Date.now()
+  };
+  
+  // Save directly to your 'expenses' store!
+  await db.put('expenses', expense);
+  return expense;
+};
+
+
+// Fetch all expenses (both pending and synced) for the Dashboard
+export const getAllExpenses = async () => {
+  const db = await initDB();
+  return await db.getAll('expenses');
+};
+
+// Update an existing expense
+export const updateOfflineExpense = async (localId, updates) => {
+  const db = await initDB();
+  const expense = await db.get('expenses', localId);
+  if (expense) {
+    const updatedExpense = { ...expense, ...updates, timestamp: Date.now(), sync_status: 'pending'};
+    await db.put('expenses', updatedExpense);
+    return updatedExpense;
+  }
+};
+
+// Delete an expense
+export const deleteOfflineExpense = async (localId) => {
+  const db = await initDB();
+  await db.delete('expenses', localId);
+};
+
+
+// Fetch all offline notes
+export const getAllNotes = async () => {
+  const db = await initDB();
+  return await db.getAll('notes');
+};
+
+// Fetch all offline photos
+export const getAllPhotos = async () => {
+  const db = await initDB();
+  return await db.getAll('photos');
+};
+
+// --- NOTES: Update & Delete ---
+export const updateOfflineNote = async (localId, updates) => {
+  const db = await initDB();
+  const note = await db.get('notes', localId);
+  if (note) {
+    const updatedNote = { ...note, ...updates, timestamp: Date.now(), sync_status: 'pending' };
+    await db.put('notes', updatedNote);
+    return updatedNote;
+  }
+};
+
+export const deleteOfflineNote = async (localId) => {
+  const db = await initDB();
+  await db.delete('notes', localId);
+};
+
+
+// --- PHOTOS: Delete ---
+// (Usually, you don't "update" a photo file, you just delete it and take a new one)
+export const deleteOfflinePhoto = async (localId) => {
+  const db = await initDB();
+  await db.delete('photos', localId);
+};
+
+export const saveCheckIn = async (locationId, newTime) => {
+  const db = await initDB();
+  await db.put('check_ins', {
+    location_id: locationId,
+    actual_time: newTime,
+    timestamp: Date.now(),
+    sync_status: 'pending'
+  });
+};
+
+export const getAllCheckIns = async () => {
+  const db = await initDB();
+  return await db.getAll('check_ins');
+};
+
+// Remove a check-in to revert to the planned schedule
+export const deleteCheckIn = async (locationId) => {
+  const db = await initDB();
+  await db.delete('check_ins', locationId);
+};
+
+
+// Check if the user has ANY pending data across all tables
+export const checkHasPendingData = async () => {
+  const db = await initDB();
+  const expenses = await db.getAll('expenses');
+  const notes = await db.getAll('notes');
+  const photos = await db.getAll('photos');
+  const checkIns = await db.getAll('check_ins');
+
+  return [...expenses, ...notes, ...photos, ...checkIns].some(item => item.sync_status === 'pending');
+};
+
+// Mark a specific item as successfully synced
+export const markItemAsSynced = async (storeName, id) => {
+  const db = await initDB();
+  const item = await db.get(storeName, id);
+  if (item) {
+    item.sync_status = 'synced';
+    await db.put(storeName, item);
+  }
+};
+
+
+export const saveApiCache = async (key, data) => {
+  const db = await initDB();
+  await db.put('api_cache', { cache_key: key, data, updated_at: Date.now() });
+};
+
+export const getApiCache = async (key) => {
+  const db = await initDB();
+  return await db.get('api_cache', key);
 };
