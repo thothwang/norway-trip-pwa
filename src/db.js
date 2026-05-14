@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'norway_trip_offline_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const initDB = async () => {
   return openDB(DB_NAME, DB_VERSION, {
@@ -27,9 +27,15 @@ export const initDB = async () => {
         const photoStore = db.createObjectStore('photos', { keyPath: 'local_id' });
         photoStore.createIndex('sync_status', 'sync_status');
       }
-      if (!db.objectStoreNames.contains('check_ins')) {
-        db.createObjectStore('check_ins', { keyPath: 'location_id' });
-      }
+        if (oldVersion < 4 && db.objectStoreNames.contains('check_ins')) {
+            db.deleteObjectStore('check_ins');
+        }
+
+        if (!db.objectStoreNames.contains('check_ins')) {
+            const checkInStore = db.createObjectStore('check_ins', { keyPath: 'local_id' });
+            checkInStore.createIndex('sync_status', 'sync_status');
+            checkInStore.createIndex('user_id', 'user_id');
+        }
       if (!db.objectStoreNames.contains('api_cache')) {
         db.createObjectStore('api_cache', { keyPath: 'cache_key' });
       }
@@ -178,13 +184,16 @@ export const deleteOfflinePhoto = async (localId) => {
   await db.delete('photos', localId);
 };
 
-export const saveCheckIn = async (locationId, newTime) => {
+export const saveCheckIn = async (locationId, newTime, userId = getCurrentUserId()) => {
   const db = await initDB();
+
   await db.put('check_ins', {
+    local_id: `${userId}_${locationId}`,
+    user_id: userId,
     location_id: locationId,
     actual_time: newTime,
     timestamp: Date.now(),
-    sync_status: 'pending'
+    sync_status: 'local'
   });
 };
 
@@ -194,21 +203,24 @@ export const getAllCheckIns = async () => {
 };
 
 // Remove a check-in to revert to the planned schedule
-export const deleteCheckIn = async (locationId) => {
+export const deleteCheckIn = async (locationId, userId = getCurrentUserId()) => {
   const db = await initDB();
-  await db.delete('check_ins', locationId);
+  await db.delete('check_ins', `${userId}_${locationId}`);
 };
 
 
 // Check if the user has ANY pending data across all tables
 export const checkHasPendingData = async () => {
   const db = await initDB();
+  const currentUserId = getCurrentUserId();
+
   const expenses = await db.getAll('expenses');
   const notes = await db.getAll('notes');
   const photos = await db.getAll('photos');
-  const checkIns = await db.getAll('check_ins');
 
-  return [...expenses, ...notes, ...photos, ...checkIns].some(item => item.sync_status === 'pending');
+  return [...expenses, ...notes, ...photos].some(
+    item => item.sync_status === 'pending' && item.user_id === currentUserId
+  );
 };
 
 // Mark a specific item as successfully synced
@@ -230,4 +242,13 @@ export const saveApiCache = async (key, data) => {
 export const getApiCache = async (key) => {
   const db = await initDB();
   return await db.get('api_cache', key);
+};
+
+
+export const getCurrentUserId = () => {
+  return parseInt(localStorage.getItem("current_user_id") || "1", 10);
+};
+
+export const setCurrentUserId = (userId) => {
+  localStorage.setItem("current_user_id", String(userId));
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { getAllExpenses } from '../db';
+import { getAllExpenses, getCurrentUserId } from '../db';
 import ExpenseModal from './ExpenseModal'; // Import the Modal
 
 export default function Budget({ refreshTrigger, triggerRefresh }) {
@@ -12,7 +12,9 @@ export default function Budget({ refreshTrigger, triggerRefresh }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadData = async () => {
-    const data = await getAllExpenses();
+    const currentUserId = getCurrentUserId();
+    const allData = await getAllExpenses();
+    const data = allData.filter(e => e.user_id === currentUserId);
     data.sort((a, b) => b.timestamp - a.timestamp);
     setExpenses(data);
     const sum = data.reduce((acc, curr) => acc + (curr.amount_nok || 0), 0);

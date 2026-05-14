@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Camera, Save, CloudUpload, Image as ImageIcon } from 'lucide-react';
 import { compressImage } from '../utils/imageUtils';
 import { saveOfflineNote, saveOfflinePhoto, getPendingSyncData, getPendingPhotos, markAsSynced } from '../db';
+import { API_BASE_URL } from '../config';
 
 export default function Memories({ selectedLocation, onSyncComplete }) {
   const [note, setNote] = useState('');
@@ -69,7 +70,7 @@ export default function Memories({ selectedLocation, onSyncComplete }) {
           expenses: expenses.map(e => ({ location_id: e.location_id, amount_nok: e.amount_nok, category: e.category }))
         };
 
-        const response = await fetch('http://localhost:8000/api/sync/', {
+        const response = await fetch(`${API_BASE_URL}/api/sync/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -91,7 +92,7 @@ export default function Memories({ selectedLocation, onSyncComplete }) {
         // Convert Blob to File object for the FormData
         formData.append('file', new File([p.blob], 'photo.webp', { type: 'image/webp' }));
 
-        const photoRes = await fetch('http://localhost:8000/api/sync/photo', {
+        const photoRes = await fetch(`${API_BASE_URL}/api/sync/photo`, {
           method: 'POST',
           body: formData
         });

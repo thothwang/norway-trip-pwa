@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, X, Trash2 } from 'lucide-react';
-import { saveOfflineExpense, updateOfflineExpense, deleteOfflineExpense } from '../db';
+import { saveOfflineExpense, updateOfflineExpense, deleteOfflineExpense, getCurrentUserId } from '../db';
 
 export default function ExpenseModal({ isOpen, onClose, location, editItem, onRefresh }) {
   const [amount, setAmount] = useState('');
@@ -30,7 +30,7 @@ export default function ExpenseModal({ isOpen, onClose, location, editItem, onRe
           category: description
         });
       } else {
-        await saveOfflineExpense(1, location.id, parseInt(amount), description);
+        await saveOfflineExpense(getCurrentUserId(), location.id, parseInt(amount), description);
       }
         if (onRefresh) {
                 onRefresh();

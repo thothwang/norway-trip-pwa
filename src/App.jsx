@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { Map, Wallet, Camera, CloudUpload, CloudOff, CloudCheck, RefreshCw } from 'lucide-react'
+import { Map, Wallet, Camera, CloudUpload, CloudOff, CloudCheck, RefreshCw, Car } from 'lucide-react'
 import Timeline from './components/Timeline'
 import Itinerary from './components/Itinerary'
 import ExpenseModal from './components/ExpenseModal'
 import Budget from './components/Budget'
 import NoteModal from './components/NoteModal';
 import PhotoModal from './components/PhotoModal';
-import { checkHasPendingData } from './db';
+import { checkHasPendingData, getCurrentUserId, setCurrentUserId } from './db';
 import { runGlobalSync } from './sync';
+import TrafficDashboard from './components/TrafficDashboard';
+
 
 
 function App() {
+  const [currentUserId, setCurrentUserIdState] = useState(getCurrentUserId());
   const [activeTab, setActiveTab] = useState('itinerary');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(1);
@@ -69,11 +72,31 @@ function App() {
               </p>
             ) : (
               <p className="text-xs font-bold text-gray-400 mt-1">
-                8 Days • Offline Mode
+                15 Days • Offline Mode
               </p>
             )}
         </div>
-
+        <select
+          value={currentUserId}
+          onChange={(e) => {
+            const userId = parseInt(e.target.value, 10);
+            setCurrentUserId(userId);
+            setCurrentUserIdState(userId);
+            triggerRefresh();
+          }}
+          className="text-xs bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 font-bold text-gray-500"
+        >
+          <option value={1}>TH</option>
+          <option value={2}>Chun</option>
+          <option value={3}>Chris</option>
+          <option value={4}>03</option>
+          <option value={5}>Seven</option>
+          <option value={6}>Sheng</option>
+          <option value={7}>Doulu</option>
+          <option value={8}>Doris</option>
+          <option value={9}>Julie</option>
+          <option value={10}>Hwa</option>
+        </select>
         <button 
           onClick={handleManualSync}
           disabled={isSyncing || !hasUnsyncedData}
@@ -99,6 +122,7 @@ function App() {
         )}
         
         {activeTab === 'budget' && <Budget refreshTrigger={refreshTrigger} triggerRefresh={triggerRefresh}/>}
+        {activeTab === 'traffic' && (<TrafficDashboard />)}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 z-50">
@@ -106,6 +130,10 @@ function App() {
           <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'itinerary' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
             <Map size={22} strokeWidth={activeTab === 'itinerary' ? 2.5 : 2} />
             <span className="text-[10px] font-bold tracking-wider">行程</span>
+          </button>
+          <button onClick={() => setActiveTab('traffic')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'traffic' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
+            <Car size={22} strokeWidth={activeTab === 'traffic' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold tracking-wider">交通</span>
           </button>
           <button onClick={() => setActiveTab('budget')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'budget' ? 'text-[#e85a4f]' : 'text-gray-400 hover:text-gray-600'}`}>
             <Wallet size={22} strokeWidth={activeTab === 'budget' ? 2.5 : 2} />

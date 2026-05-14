@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, X, Image as ImageIcon, Clock } from 'lucide-react';
-import { saveOfflinePhoto, saveCheckIn } from '../db';
+import { saveOfflinePhoto, saveCheckIn, getCurrentUserId } from '../db';
 import exifr from 'exifr'; // The magic EXIF library!
 
 export default function PhotoModal({ isOpen, onClose, location, onRefresh }) {
@@ -53,11 +53,11 @@ export default function PhotoModal({ isOpen, onClose, location, onRefresh }) {
     
     try {
       // Save the actual photo
-      await saveOfflinePhoto(1, location.id, blob, 0);
+      await saveOfflinePhoto(getCurrentUserId(), location.id, blob, 1);
       
       // MAGIC: If the user agreed to update the check-in time, save it!
       if (exifTime && updateTimeChecked) {
-        await saveCheckIn(location.id, exifTime);
+        await saveCheckIn(location.id, exifTime, getCurrentUserId());
       }
 
       if (onRefresh) onRefresh();

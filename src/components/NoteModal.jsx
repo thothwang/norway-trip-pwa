@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pencil, X, Trash2 } from 'lucide-react';
-import { saveOfflineNote, updateOfflineNote, deleteOfflineNote } from '../db';
+import { saveOfflineNote, updateOfflineNote, deleteOfflineNote, getCurrentUserId } from '../db';
 
 export default function NoteModal({ isOpen, onClose, location, editItem, onRefresh }) {
   const [content, setContent] = useState('');
@@ -20,7 +20,7 @@ export default function NoteModal({ isOpen, onClose, location, editItem, onRefre
       if (isEditMode) {
         await updateOfflineNote(editItem.local_id, { content });
       } else {
-        await saveOfflineNote(1, location?.id, content);
+        await saveOfflineNote(getCurrentUserId(), location?.id, content);
       }
       if (onRefresh) onRefresh();
       onClose();
