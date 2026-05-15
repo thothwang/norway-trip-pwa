@@ -96,7 +96,8 @@ export default function Itinerary({ onSelectLocation, refreshTrigger }) {
 
     const currentDay = schedule.find(d => d.id === activeDayId) || schedule[0];
     const currentDayIndex = schedule.findIndex(d => d.id === currentDay?.id) + 1;
-    const bannerImage = `/trip-banners/day-${currentDayIndex}.png`;
+    //const bannerImage = `/trip-banners/day-${currentDayIndex}.png`;
+    const bannerImage = `${import.meta.env.BASE_URL}trip-banners/day-${currentDayIndex}.png`;
     
     useEffect(() => {
     if (!currentDay) return;
@@ -177,7 +178,8 @@ export default function Itinerary({ onSelectLocation, refreshTrigger }) {
             alt={currentDay.title}
             className="w-full h-full object-cover"
             onError={(e) => {
-            e.currentTarget.src = "/trip-banners/default.png";
+            //e.currentTarget.src = "/trip-banners/default.png";
+            e.currentTarget.src = `${import.meta.env.BASE_URL}trip-banners/default.png`;
             }}
         />
         </div>
