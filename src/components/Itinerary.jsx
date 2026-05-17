@@ -62,6 +62,30 @@ export default function Itinerary({ onSelectLocation, refreshTrigger }) {
     }
   };
 
+    const getDefaultDayId = (days) => {
+    if (!days || days.length === 0) return null;
+
+    const today = new Date();
+    const todayString = today.toISOString().slice(0, 10);
+
+    // Exact match: today is one of the trip days
+    const todayDay = days.find(day => day.date === todayString);
+    if (todayDay) return todayDay.id;
+
+    // Before trip: use first day
+    if (todayString < days[0].date) {
+        return days[0].id;
+    }
+
+    // After trip: use last day
+    if (todayString > days[days.length - 1].date) {
+        return days[days.length - 1].id;
+    }
+
+    // During trip but no exact match, fallback to first day
+    return days[0].id;
+    };
+
     const loadData = async () => {
     try {
         // Fetch planned schedule from backend
@@ -78,7 +102,7 @@ export default function Itinerary({ onSelectLocation, refreshTrigger }) {
 
         // Set Day 1 as active the first time
         if (!activeDayId && data.length > 0) {
-        setActiveDayId(data[0].id);
+        setActiveDayId(getDefaultDayId(data));
         }
 
     } catch (err) {

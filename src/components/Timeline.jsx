@@ -116,6 +116,31 @@ export default function Timeline({ refreshTrigger, triggerRefresh }) {
     }));
   };
 
+
+    const getDefaultDayId = (days) => {
+    if (!days || days.length === 0) return null;
+
+    const today = new Date();
+    const todayString = today.toISOString().slice(0, 10);
+
+    // Exact match: today is one of the trip days
+    const todayDay = days.find(day => day.date === todayString);
+    if (todayDay) return todayDay.id;
+
+    // Before trip: use first day
+    if (todayString < days[0].date) {
+        return days[0].id;
+    }
+
+    // After trip: use last day
+    if (todayString > days[days.length - 1].date) {
+        return days[days.length - 1].id;
+    }
+
+    // During trip but no exact match, fallback to first day
+    return days[0].id;
+    };
+
   const loadData = async () => {
     try {
       // 1. Fetch the overarching schedule for the Day Tabs
@@ -124,7 +149,7 @@ export default function Timeline({ refreshTrigger, triggerRefresh }) {
       setSchedule(scheduleData);
 
       // Set the active day to the first day if none is selected
-      const currentDayId = activeDayId || (scheduleData.length > 0 ? scheduleData[0].id : null);
+      const currentDayId = activeDayId || getDefaultDayId(scheduleData);
       if (!activeDayId && currentDayId) setActiveDayId(currentDayId);
 
       if (!currentDayId) {
